@@ -393,7 +393,14 @@ describe('Server', () => {
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Verify that fastify was called with correct options
-      expect(customFastify).toHaveBeenCalledWith({ logger: true });
+      expect(customFastify).toHaveBeenCalledWith({ 
+        logger: true,
+        ajv: {
+          customOptions: {
+            allErrors: true,
+          },
+        },
+      });
 
       // Verify that register was called (this should cover line 8)
       const mockInstance = customFastify.mock.results[0].value;
@@ -430,7 +437,14 @@ describe('Server', () => {
       require('../server');
 
       // Verify that all expected calls were made
-      expect(mockFastify).toHaveBeenCalledWith({ logger: true });
+      expect(mockFastify).toHaveBeenCalledWith({ 
+        logger: true,
+        ajv: {
+          customOptions: {
+            allErrors: true,
+          },
+        },
+      });
       expect(mockFastifyInstance.register).toHaveBeenCalledWith(
         expect.any(Function),
         { prefix: '/employees' }

@@ -1,4 +1,11 @@
-const fastify = require('fastify')({ logger: true });
+const fastify = require('fastify')({ 
+  logger: true,
+  ajv: {
+    customOptions: {
+      allErrors: true,
+    }
+  }
+});
 
 // Register employee routes
 fastify.register(require('./routes/employee'), { prefix: '/employees' });

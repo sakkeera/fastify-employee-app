@@ -1,4 +1,47 @@
 const state = require('./state');
+const { employeeSchema } = require('../../schemas/employee.schema');
+
+// Validation schemas
+const updateEmployeeSchema = {
+  type: 'object',
+  required: ['name', 'age'],
+  properties: {
+    name: {
+      type: 'string',
+      minLength: 1,
+      description: 'Employee name'
+    },
+    age: {
+      type: 'integer',
+      minimum: 5,
+      maximum: 95,
+      description: 'Employee age (must be between 5 and 95)'
+    }
+  }
+};
+
+// Custom schema for POST that makes id optional
+const createEmployeeSchema = {
+  type: 'object',
+  required: ['name', 'age'],
+  properties: {
+    id: { 
+      type: 'number',
+      minimum: 1,
+      multipleOf: 1 // Ensures integer
+    },
+    name: { 
+      type: 'string',
+      minLength: 1 // Prevents empty strings
+    },
+    age: {
+      type: 'integer',
+      minimum: 5,
+      maximum: 95,
+    },
+  },
+  additionalProperties: false,
+};
 
 module.exports = function (fastify, opts, done) {
   // GET all employees
@@ -33,19 +76,23 @@ module.exports = function (fastify, opts, done) {
   });
 
   // POST create new employee
-  fastify.post('/', async (request, reply) => {
+  fastify.post('/', {
+    schema: {
+      body: createEmployeeSchema,
+      response: {
+        400: {
+          type: 'object',
+          properties: {
+            error: { type: 'string' }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     const { id, name, age } = request.body;
-    if (!name || age === undefined) {
-      return reply.code(400).send({ error: 'Missing required fields: name and age are required' });
-    }
-    if (typeof age !== 'number' || age <= 0 || !Number.isInteger(age)) {
-      return reply.code(400).send({ error: 'Age must be a positive integer' });
-    }
+    
     let employeeId;
     if (id !== undefined) {
-      if (isNaN(Number(id)) || Number(id) <= 0 || !Number.isInteger(Number(id))) {
-        return reply.code(400).send({ error: 'ID must be a positive integer' });
-      }
       employeeId = Number(id);
       const employees = state.getEmployees();
       const existingEmployee = employees.find(emp => emp.id === employeeId);
@@ -56,6 +103,7 @@ module.exports = function (fastify, opts, done) {
       employeeId = state.getNextId();
       state.setNextId(employeeId + 1);
     }
+    
     const newEmployee = { id: employeeId, name, age };
     const employees = state.getEmployees();
     employees.push(newEmployee);
@@ -68,24 +116,33 @@ module.exports = function (fastify, opts, done) {
   });
 
   // PUT update employee
-  fastify.put('/:id', async (request, reply) => {
+  fastify.put('/:id', {
+    schema: {
+      body: employeeSchema,
+      response: {
+        400: {
+          type: 'object',
+          properties: {
+            error: { type: 'string' }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     const { id } = request.params;
     const { name, age } = request.body;
+    
     if (!/^\d+$/.test(id)) {
       return reply.code(400).send({ error: 'Invalid ID format. ID must be a number.' });
     }
+    
     const employeeId = parseInt(id);
-    if (!name || age === undefined) {
-      return reply.code(400).send({ error: 'Missing required fields: name and age are required' });
-    }
-    if (typeof age !== 'number' || age <= 0 || !Number.isInteger(age)) {
-      return reply.code(400).send({ error: 'Age must be a positive integer' });
-    }
     const employees = state.getEmployees();
     const employeeIndex = employees.findIndex(emp => emp.id === employeeId);
     if (employeeIndex === -1) {
       return reply.code(404).send({ error: 'Employee not found' });
     }
+    
     employees[employeeIndex] = { ...employees[employeeIndex], name, age };
     state.setEmployees(employees);
     return {

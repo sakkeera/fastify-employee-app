@@ -172,9 +172,7 @@ describe('Employee Routes', () => {
         .expect(400);
 
       expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe(
-        'Missing required fields: name and age are required'
-      );
+      expect(response.body.error).toBe('Bad Request');
     });
 
     it('should return 400 when missing age field', async () => {
@@ -184,9 +182,7 @@ describe('Employee Routes', () => {
         .expect(400);
 
       expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe(
-        'Missing required fields: name and age are required'
-      );
+      expect(response.body.error).toBe('Bad Request');
     });
 
     it('should return 400 when age is not a number', async () => {
@@ -196,17 +192,27 @@ describe('Employee Routes', () => {
         .expect(400);
 
       expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe('Age must be a positive integer');
+      expect(response.body.error).toBe('Bad Request');
     });
 
-    it('should return 400 when age is negative', async () => {
+    it('should return 400 when age is too low (below 5)', async () => {
       const response = await request(server)
         .post('/employees')
-        .send({ name: 'John Doe', age: -5 })
+        .send({ name: 'John Doe', age: 3 })
         .expect(400);
 
       expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe('Age must be a positive integer');
+      expect(response.body.error).toBe('Bad Request');
+    });
+
+    it('should return 400 when age is too high (above 95)', async () => {
+      const response = await request(server)
+        .post('/employees')
+        .send({ name: 'John Doe', age: 100 })
+        .expect(400);
+
+      expect(response.body).toHaveProperty('error');
+      expect(response.body.error).toBe('Bad Request');
     });
 
     it('should return 400 when age is zero', async () => {
@@ -216,7 +222,7 @@ describe('Employee Routes', () => {
         .expect(400);
 
       expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe('Age must be a positive integer');
+      expect(response.body.error).toBe('Bad Request');
     });
 
     it('should return 400 when custom ID is not a number', async () => {
@@ -226,7 +232,7 @@ describe('Employee Routes', () => {
         .expect(400);
 
       expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe('ID must be a positive integer');
+      expect(response.body.error).toBe('Bad Request');
     });
 
     it('should return 400 when custom ID is negative', async () => {
@@ -236,7 +242,7 @@ describe('Employee Routes', () => {
         .expect(400);
 
       expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe('ID must be a positive integer');
+      expect(response.body.error).toBe('Bad Request');
     });
 
     it('should return 400 when custom ID is zero', async () => {
@@ -246,7 +252,7 @@ describe('Employee Routes', () => {
         .expect(400);
 
       expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe('ID must be a positive integer');
+      expect(response.body.error).toBe('Bad Request');
     });
 
     it('should handle empty name string', async () => {
@@ -256,9 +262,7 @@ describe('Employee Routes', () => {
         .expect(400);
 
       expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe(
-        'Missing required fields: name and age are required'
-      );
+      expect(response.body.error).toBe('Bad Request');
     });
 
     it('should handle null values', async () => {
@@ -268,9 +272,7 @@ describe('Employee Routes', () => {
         .expect(400);
 
       expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe(
-        'Missing required fields: name and age are required'
-      );
+      expect(response.body.error).toBe('Bad Request');
     });
 
     it('should return 400 when custom ID is decimal', async () => {
@@ -279,7 +281,7 @@ describe('Employee Routes', () => {
         .send({ id: 2.5, name: 'Decimal ID', age: 30 })
         .expect(400);
       expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe('ID must be a positive integer');
+      expect(response.body.error).toBe('Bad Request');
     });
 
     it('should return 400 when age is decimal', async () => {
@@ -288,7 +290,7 @@ describe('Employee Routes', () => {
         .send({ name: 'John Doe', age: 25.5 })
         .expect(400);
       expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe('Age must be a positive integer');
+      expect(response.body.error).toBe('Bad Request');
     });
   });
 
@@ -348,9 +350,7 @@ describe('Employee Routes', () => {
         .expect(400);
 
       expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe(
-        'Missing required fields: name and age are required'
-      );
+      expect(response.body.error).toBe('Bad Request');
     });
 
     it('should return 400 when missing age field', async () => {
@@ -360,9 +360,7 @@ describe('Employee Routes', () => {
         .expect(400);
 
       expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe(
-        'Missing required fields: name and age are required'
-      );
+      expect(response.body.error).toBe('Bad Request');
     });
 
     it('should return 400 when age is not a number', async () => {
@@ -372,17 +370,27 @@ describe('Employee Routes', () => {
         .expect(400);
 
       expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe('Age must be a positive integer');
+      expect(response.body.error).toBe('Bad Request');
     });
 
-    it('should return 400 when age is negative', async () => {
+    it('should return 400 when age is too low (below 5)', async () => {
       const response = await request(server)
         .put('/employees/1')
-        .send({ name: 'John Doe', age: -5 })
+        .send({ name: 'John Doe', age: 3 })
         .expect(400);
 
       expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe('Age must be a positive integer');
+      expect(response.body.error).toBe('Bad Request');
+    });
+
+    it('should return 400 when age is too high (above 95)', async () => {
+      const response = await request(server)
+        .put('/employees/1')
+        .send({ name: 'John Doe', age: 100 })
+        .expect(400);
+
+      expect(response.body).toHaveProperty('error');
+      expect(response.body.error).toBe('Bad Request');
     });
 
     it('should return 400 when age is zero', async () => {
@@ -392,7 +400,7 @@ describe('Employee Routes', () => {
         .expect(400);
 
       expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe('Age must be a positive integer');
+      expect(response.body.error).toBe('Bad Request');
     });
 
     it('should return 400 when age is decimal', async () => {
@@ -401,7 +409,7 @@ describe('Employee Routes', () => {
         .send({ name: 'John Doe', age: 25.5 })
         .expect(400);
       expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe('Age must be a positive integer');
+      expect(response.body.error).toBe('Bad Request');
     });
   });
 
