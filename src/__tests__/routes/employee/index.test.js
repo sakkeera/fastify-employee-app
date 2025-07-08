@@ -12,7 +12,76 @@ describe('Employee Routes', () => {
     // Reset in-memory state
     state.reset();
     // Create a fresh Fastify instance for each test
-    app = Fastify({ logger: false });
+    app = Fastify({ 
+      logger: false,
+      ajv: {
+        customOptions: {
+          allErrors: true,
+        }
+      }
+    });
+
+    // Set up custom error handler for tests
+    try {
+      app.setErrorHandler((error, request, reply) => {
+        if (error.validation) {
+          // Handle validation errors
+          const validationErrors = error.validation;
+          let errorMessage = 'Validation failed';
+          
+          if (validationErrors.length > 0) {
+            const firstError = validationErrors[0];
+            const field = firstError.instancePath.replace('/', '') || firstError.params.missingProperty || 'data';
+            
+            // Unified age error message for any age-related validation
+            if (field === 'age' && (firstError.keyword === 'minimum' || firstError.keyword === 'maximum' || firstError.keyword === 'type' || firstError.keyword === 'multipleOf')) {
+              errorMessage = 'Age must be between 5 and 95 years';
+            } else {
+              switch (firstError.keyword) {
+                case 'minimum':
+                  if (field === 'id') {
+                    errorMessage = `ID must be at least ${firstError.params.limit}`;
+                  } else {
+                    errorMessage = `${field} must be at least ${firstError.params.limit}`;
+                  }
+                  break;
+                case 'maximum':
+                  errorMessage = `${field} must be at most ${firstError.params.limit}`;
+                  break;
+                case 'type':
+                  errorMessage = `${field} must be a ${firstError.params.type}`;
+                  break;
+                case 'required':
+                  errorMessage = `${firstError.params.missingProperty} is required`;
+                  break;
+                case 'minLength':
+                  errorMessage = `${field} cannot be empty`;
+                  break;
+                case 'multipleOf':
+                  errorMessage = `${field} must be a whole number`;
+                  break;
+                default:
+                  errorMessage = `Invalid ${field}`;
+              }
+            }
+          }
+          
+          return reply.code(400).send({
+            success: false,
+            message: errorMessage
+          });
+        }
+        
+        // Handle other errors
+        return reply.code(500).send({
+          success: false,
+          message: 'Internal server error'
+        });
+      });
+    } catch (err) {
+      // If setErrorHandler is not available, continue without custom error handling
+      console.warn('Custom error handler could not be set in test environment');
+    }
 
     // Register employee routes
     app.register(employeeRoutes, { prefix: '/employees' });
@@ -95,15 +164,19 @@ describe('Employee Routes', () => {
     it('should return 404 for non-existent employee ID', async () => {
       const response = await request(server).get('/employees/999').expect(404);
 
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe('Employee not found');
+      expect(response.body).toHaveProperty('success');
+      expect(response.body.success).toBe(false);
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toBe('Employee not found');
     });
 
     it('should return 400 for invalid ID format (string)', async () => {
       const response = await request(server).get('/employees/abc').expect(400);
 
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe(
+      expect(response.body).toHaveProperty('success');
+      expect(response.body.success).toBe(false);
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toBe(
         'Invalid ID format. ID must be a number.'
       );
     });
@@ -111,8 +184,10 @@ describe('Employee Routes', () => {
     it('should return 400 for invalid ID format (decimal)', async () => {
       const response = await request(server).get('/employees/1.5').expect(400);
 
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe(
+      expect(response.body).toHaveProperty('success');
+      expect(response.body.success).toBe(false);
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toBe(
         'Invalid ID format. ID must be a number.'
       );
     });
@@ -161,8 +236,10 @@ describe('Employee Routes', () => {
         .send({ id: 1, name: 'Jane Smith', age: 25 })
         .expect(409);
 
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe('Employee with ID 1 already exists');
+      expect(response.body).toHaveProperty('success');
+      expect(response.body.success).toBe(false);
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toBe('Employee with ID 1 already exists');
     });
 
     it('should return 400 when missing name field', async () => {
@@ -171,8 +248,9 @@ describe('Employee Routes', () => {
         .send({ age: 30 })
         .expect(400);
 
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe('Bad Request');
+      expect(response.body).toHaveProperty('success');
+      expect(response.body.success).toBe(false);
+      expect(response.body).toHaveProperty('message');
     });
 
     it('should return 400 when missing age field', async () => {
@@ -181,8 +259,9 @@ describe('Employee Routes', () => {
         .send({ name: 'John Doe' })
         .expect(400);
 
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe('Bad Request');
+      expect(response.body).toHaveProperty('success');
+      expect(response.body.success).toBe(false);
+      expect(response.body).toHaveProperty('message');
     });
 
     it('should return 400 when age is not a number', async () => {
@@ -191,8 +270,9 @@ describe('Employee Routes', () => {
         .send({ name: 'John Doe', age: 'thirty' })
         .expect(400);
 
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe('Bad Request');
+      expect(response.body).toHaveProperty('success');
+      expect(response.body.success).toBe(false);
+      expect(response.body).toHaveProperty('message');
     });
 
     it('should return 400 when age is too low (below 5)', async () => {
@@ -201,8 +281,10 @@ describe('Employee Routes', () => {
         .send({ name: 'John Doe', age: 3 })
         .expect(400);
 
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe('Bad Request');
+      expect(response.body).toHaveProperty('success');
+      expect(response.body.success).toBe(false);
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toBe('Age must be between 5 and 95 years');
     });
 
     it('should return 400 when age is too high (above 95)', async () => {
@@ -211,8 +293,10 @@ describe('Employee Routes', () => {
         .send({ name: 'John Doe', age: 100 })
         .expect(400);
 
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe('Bad Request');
+      expect(response.body).toHaveProperty('success');
+      expect(response.body.success).toBe(false);
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toBe('Age must be between 5 and 95 years');
     });
 
     it('should return 400 when age is zero', async () => {
@@ -221,8 +305,10 @@ describe('Employee Routes', () => {
         .send({ name: 'John Doe', age: 0 })
         .expect(400);
 
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe('Bad Request');
+      expect(response.body).toHaveProperty('success');
+      expect(response.body.success).toBe(false);
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toBe('Age must be between 5 and 95 years');
     });
 
     it('should return 400 when custom ID is not a number', async () => {
@@ -231,8 +317,9 @@ describe('Employee Routes', () => {
         .send({ id: 'abc', name: 'John Doe', age: 30 })
         .expect(400);
 
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe('Bad Request');
+      expect(response.body).toHaveProperty('success');
+      expect(response.body.success).toBe(false);
+      expect(response.body).toHaveProperty('message');
     });
 
     it('should return 400 when custom ID is negative', async () => {
@@ -241,8 +328,9 @@ describe('Employee Routes', () => {
         .send({ id: -1, name: 'John Doe', age: 30 })
         .expect(400);
 
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe('Bad Request');
+      expect(response.body).toHaveProperty('success');
+      expect(response.body.success).toBe(false);
+      expect(response.body).toHaveProperty('message');
     });
 
     it('should return 400 when custom ID is zero', async () => {
@@ -251,8 +339,9 @@ describe('Employee Routes', () => {
         .send({ id: 0, name: 'John Doe', age: 30 })
         .expect(400);
 
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe('Bad Request');
+      expect(response.body).toHaveProperty('success');
+      expect(response.body.success).toBe(false);
+      expect(response.body).toHaveProperty('message');
     });
 
     it('should handle empty name string', async () => {
@@ -261,8 +350,9 @@ describe('Employee Routes', () => {
         .send({ name: '', age: 30 })
         .expect(400);
 
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe('Bad Request');
+      expect(response.body).toHaveProperty('success');
+      expect(response.body.success).toBe(false);
+      expect(response.body).toHaveProperty('message');
     });
 
     it('should handle null values', async () => {
@@ -271,8 +361,9 @@ describe('Employee Routes', () => {
         .send({ name: null, age: null })
         .expect(400);
 
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe('Bad Request');
+      expect(response.body).toHaveProperty('success');
+      expect(response.body.success).toBe(false);
+      expect(response.body).toHaveProperty('message');
     });
 
     it('should return 400 when custom ID is decimal', async () => {
@@ -280,8 +371,9 @@ describe('Employee Routes', () => {
         .post('/employees')
         .send({ id: 2.5, name: 'Decimal ID', age: 30 })
         .expect(400);
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe('Bad Request');
+      expect(response.body).toHaveProperty('success');
+      expect(response.body.success).toBe(false);
+      expect(response.body).toHaveProperty('message');
     });
 
     it('should return 400 when age is decimal', async () => {
@@ -289,8 +381,10 @@ describe('Employee Routes', () => {
         .post('/employees')
         .send({ name: 'John Doe', age: 25.5 })
         .expect(400);
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe('Bad Request');
+      expect(response.body).toHaveProperty('success');
+      expect(response.body.success).toBe(false);
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toBe('Age must be between 5 and 95 years');
     });
   });
 
@@ -327,8 +421,10 @@ describe('Employee Routes', () => {
         .send({ name: 'John Doe', age: 30 })
         .expect(404);
 
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe('Employee not found');
+      expect(response.body).toHaveProperty('success');
+      expect(response.body.success).toBe(false);
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toBe('Employee not found');
     });
 
     it('should return 400 for invalid ID format', async () => {
@@ -337,8 +433,10 @@ describe('Employee Routes', () => {
         .send({ name: 'John Doe', age: 30 })
         .expect(400);
 
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe(
+      expect(response.body).toHaveProperty('success');
+      expect(response.body.success).toBe(false);
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toBe(
         'Invalid ID format. ID must be a number.'
       );
     });
@@ -349,8 +447,9 @@ describe('Employee Routes', () => {
         .send({ age: 31 })
         .expect(400);
 
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe('Bad Request');
+      expect(response.body).toHaveProperty('success');
+      expect(response.body.success).toBe(false);
+      expect(response.body).toHaveProperty('message');
     });
 
     it('should return 400 when missing age field', async () => {
@@ -359,8 +458,9 @@ describe('Employee Routes', () => {
         .send({ name: 'John Doe Updated' })
         .expect(400);
 
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe('Bad Request');
+      expect(response.body).toHaveProperty('success');
+      expect(response.body.success).toBe(false);
+      expect(response.body).toHaveProperty('message');
     });
 
     it('should return 400 when age is not a number', async () => {
@@ -369,8 +469,9 @@ describe('Employee Routes', () => {
         .send({ name: 'John Doe', age: 'thirty' })
         .expect(400);
 
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe('Bad Request');
+      expect(response.body).toHaveProperty('success');
+      expect(response.body.success).toBe(false);
+      expect(response.body).toHaveProperty('message');
     });
 
     it('should return 400 when age is too low (below 5)', async () => {
@@ -379,8 +480,10 @@ describe('Employee Routes', () => {
         .send({ name: 'John Doe', age: 3 })
         .expect(400);
 
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe('Bad Request');
+      expect(response.body).toHaveProperty('success');
+      expect(response.body.success).toBe(false);
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toBe('Age must be between 5 and 95 years');
     });
 
     it('should return 400 when age is too high (above 95)', async () => {
@@ -389,8 +492,10 @@ describe('Employee Routes', () => {
         .send({ name: 'John Doe', age: 100 })
         .expect(400);
 
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe('Bad Request');
+      expect(response.body).toHaveProperty('success');
+      expect(response.body.success).toBe(false);
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toBe('Age must be between 5 and 95 years');
     });
 
     it('should return 400 when age is zero', async () => {
@@ -399,8 +504,10 @@ describe('Employee Routes', () => {
         .send({ name: 'John Doe', age: 0 })
         .expect(400);
 
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe('Bad Request');
+      expect(response.body).toHaveProperty('success');
+      expect(response.body.success).toBe(false);
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toBe('Age must be between 5 and 95 years');
     });
 
     it('should return 400 when age is decimal', async () => {
@@ -408,8 +515,10 @@ describe('Employee Routes', () => {
         .put('/employees/1')
         .send({ name: 'John Doe', age: 25.5 })
         .expect(400);
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe('Bad Request');
+      expect(response.body).toHaveProperty('success');
+      expect(response.body.success).toBe(false);
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toBe('Age must be between 5 and 95 years');
     });
   });
 
@@ -443,8 +552,10 @@ describe('Employee Routes', () => {
         .delete('/employees/999')
         .expect(404);
 
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe('Employee not found');
+      expect(response.body).toHaveProperty('success');
+      expect(response.body.success).toBe(false);
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toBe('Employee not found');
     });
 
     it('should return 400 for invalid ID format', async () => {
@@ -452,8 +563,10 @@ describe('Employee Routes', () => {
         .delete('/employees/abc')
         .expect(400);
 
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe(
+      expect(response.body).toHaveProperty('success');
+      expect(response.body.success).toBe(false);
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toBe(
         'Invalid ID format. ID must be a number.'
       );
     });

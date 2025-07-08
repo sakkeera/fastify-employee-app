@@ -55,18 +55,24 @@ module.exports = function (fastify, opts, done) {
     };
   });
 
-  // GET employee by ID
+      // GET employee by ID
   fastify.get('/:id', async (request, reply) => {
     const { id } = request.params;
     // Strict integer string check
     if (!/^\d+$/.test(id)) {
-      return reply.code(400).send({ error: 'Invalid ID format. ID must be a number.' });
+      return reply.code(400).send({ 
+        success: false,
+        message: 'Invalid ID format. ID must be a number.' 
+      });
     }
     const employeeId = parseInt(id);
     const employees = state.getEmployees();
     const employee = employees.find(emp => emp.id === employeeId);
     if (!employee) {
-      return reply.code(404).send({ error: 'Employee not found' });
+      return reply.code(404).send({ 
+        success: false,
+        message: 'Employee not found' 
+      });
     }
     return {
       success: true,
@@ -78,15 +84,7 @@ module.exports = function (fastify, opts, done) {
   // POST create new employee
   fastify.post('/', {
     schema: {
-      body: createEmployeeSchema,
-      response: {
-        400: {
-          type: 'object',
-          properties: {
-            error: { type: 'string' }
-          }
-        }
-      }
+      body: createEmployeeSchema
     }
   }, async (request, reply) => {
     const { id, name, age } = request.body;
@@ -97,7 +95,10 @@ module.exports = function (fastify, opts, done) {
       const employees = state.getEmployees();
       const existingEmployee = employees.find(emp => emp.id === employeeId);
       if (existingEmployee) {
-        return reply.code(409).send({ error: `Employee with ID ${employeeId} already exists` });
+        return reply.code(409).send({ 
+          success: false,
+          message: `Employee with ID ${employeeId} already exists` 
+        });
       }
     } else {
       employeeId = state.getNextId();
@@ -118,29 +119,27 @@ module.exports = function (fastify, opts, done) {
   // PUT update employee
   fastify.put('/:id', {
     schema: {
-      body: employeeSchema,
-      response: {
-        400: {
-          type: 'object',
-          properties: {
-            error: { type: 'string' }
-          }
-        }
-      }
+      body: createEmployeeSchema
     }
   }, async (request, reply) => {
     const { id } = request.params;
     const { name, age } = request.body;
     
     if (!/^\d+$/.test(id)) {
-      return reply.code(400).send({ error: 'Invalid ID format. ID must be a number.' });
+      return reply.code(400).send({ 
+        success: false,
+        message: 'Invalid ID format. ID must be a number.' 
+      });
     }
     
     const employeeId = parseInt(id);
     const employees = state.getEmployees();
     const employeeIndex = employees.findIndex(emp => emp.id === employeeId);
     if (employeeIndex === -1) {
-      return reply.code(404).send({ error: 'Employee not found' });
+      return reply.code(404).send({ 
+        success: false,
+        message: 'Employee not found' 
+      });
     }
     
     employees[employeeIndex] = { ...employees[employeeIndex], name, age };
@@ -156,13 +155,19 @@ module.exports = function (fastify, opts, done) {
   fastify.delete('/:id', async (request, reply) => {
     const { id } = request.params;
     if (!/^\d+$/.test(id)) {
-      return reply.code(400).send({ error: 'Invalid ID format. ID must be a number.' });
+      return reply.code(400).send({ 
+        success: false,
+        message: 'Invalid ID format. ID must be a number.' 
+      });
     }
     const employeeId = parseInt(id);
     const employees = state.getEmployees();
     const employeeIndex = employees.findIndex(emp => emp.id === employeeId);
     if (employeeIndex === -1) {
-      return reply.code(404).send({ error: 'Employee not found' });
+      return reply.code(404).send({ 
+        success: false,
+        message: 'Employee not found' 
+      });
     }
     const deletedEmployee = employees.splice(employeeIndex, 1)[0];
     state.setEmployees(employees);
