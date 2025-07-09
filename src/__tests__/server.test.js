@@ -30,6 +30,77 @@ describe('Server', () => {
     jest.resetModules();
   });
 
+  describe('App.js Coverage', () => {
+    it('should handle setErrorHandler failure in app.js', () => {
+      const mockFastify = {
+        register: jest.fn(),
+        listen: jest.fn().mockResolvedValue(),
+        log: { error: jest.fn() },
+        setErrorHandler: jest.fn(() => {
+          throw new Error('setErrorHandler failed in app.js');
+        }),
+        get: jest.fn(),
+      };
+
+      jest.doMock('fastify', () => jest.fn(() => mockFastify));
+      jest.resetModules();
+
+      // Require app.js directly to test the catch block
+      const app = require('../app');
+
+      expect(mockConsoleWarn).toHaveBeenCalledWith('Custom error handler could not be set');
+      expect(mockFastify.register).toHaveBeenCalled();
+    });
+
+
+
+    it('should handle setErrorHandler failure and continue app initialization', () => {
+      // This test specifically covers the catch block in app.js line 79
+      const mockFastify = {
+        register: jest.fn(),
+        listen: jest.fn().mockResolvedValue(),
+        log: { error: jest.fn() },
+        setErrorHandler: jest.fn(() => {
+          throw new Error('setErrorHandler failed');
+        }),
+        get: jest.fn(),
+      };
+
+      jest.doMock('fastify', () => jest.fn(() => mockFastify));
+      jest.resetModules();
+
+      // This should not throw and should call console.warn
+      expect(() => {
+        require('../app');
+      }).not.toThrow();
+
+      expect(mockConsoleWarn).toHaveBeenCalledWith('Custom error handler could not be set');
+      expect(mockFastify.register).toHaveBeenCalled();
+    });
+
+    it('should handle setErrorHandler failure in app.js directly', () => {
+      // This test specifically covers the catch block in app.js line 79
+      const mockFastify = {
+        register: jest.fn(),
+        listen: jest.fn().mockResolvedValue(),
+        log: { error: jest.fn() },
+        setErrorHandler: jest.fn(() => {
+          throw new Error('setErrorHandler failed');
+        }),
+        get: jest.fn(),
+      };
+
+      jest.doMock('fastify', () => jest.fn(() => mockFastify));
+      jest.resetModules();
+
+      // Require app.js directly to ensure we test the app.js file
+      const app = require('../app');
+
+      expect(mockConsoleWarn).toHaveBeenCalledWith('Custom error handler could not be set');
+      expect(mockFastify.register).toHaveBeenCalled();
+    });
+  });
+
   describe('Server Startup and Configuration', () => {
     it('should start server successfully', async () => {
       const mockFastify = {
@@ -37,6 +108,7 @@ describe('Server', () => {
         listen: jest.fn().mockResolvedValue(),
         log: { error: jest.fn() },
         setErrorHandler: jest.fn(),
+        get: jest.fn(),
       };
 
       jest.doMock('fastify', () => jest.fn(() => mockFastify));
@@ -65,6 +137,7 @@ describe('Server', () => {
         listen: jest.fn().mockRejectedValue(mockError),
         log: { error: jest.fn() },
         setErrorHandler: jest.fn(),
+        get: jest.fn(),
       };
 
       jest.doMock('fastify', () => jest.fn(() => mockFastify));
@@ -85,6 +158,7 @@ describe('Server', () => {
         setErrorHandler: jest.fn(() => {
           throw new Error('setErrorHandler failed');
         }),
+        get: jest.fn(),
       };
 
       jest.doMock('fastify', () => jest.fn(() => mockFastify));
@@ -104,6 +178,7 @@ describe('Server', () => {
         listen: jest.fn().mockResolvedValue(),
         log: { error: jest.fn() },
         setErrorHandler: jest.fn(),
+        get: jest.fn(),
       }));
 
       jest.doMock('fastify', () => mockFastify);
@@ -135,6 +210,7 @@ describe('Server', () => {
         setErrorHandler: jest.fn((handler) => {
           errorHandler = handler;
         }),
+        get: jest.fn(),
       };
 
       jest.doMock('fastify', () => jest.fn(() => mockFastify));
@@ -586,6 +662,7 @@ describe('Server', () => {
         listen: jest.fn().mockRejectedValue(mockError),
         log: { error: jest.fn() },
         setErrorHandler: jest.fn(),
+        get: jest.fn(),
       };
 
       jest.doMock('fastify', () => jest.fn(() => mockFastify));
@@ -604,6 +681,7 @@ describe('Server', () => {
         listen: jest.fn().mockResolvedValue(),
         log: { error: jest.fn() },
         setErrorHandler: jest.fn(),
+        get: jest.fn(),
       };
 
       const fastifyConstructor = jest.fn(() => mockFastify);
